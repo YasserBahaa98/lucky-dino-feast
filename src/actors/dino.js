@@ -452,6 +452,137 @@ export class Dino {
     await A.to(a, { wag: 0.25 }, 0.6);
   }
 
+  /** A random happy reaction after a snack, so it's different every time. */
+  async react(big = false) {
+    const pool = ['spin', 'wiggle', 'rawr', 'flop', 'stomp', 'nod'];
+    let kind;
+    do kind = pool[Math.floor(Math.random() * pool.length)];
+    while (kind === this.lastReact);
+    this.lastReact = kind;
+    return this[kind](big);
+  }
+
+  /** Hop up with a full twirl in the air. */
+  async spin() {
+    this.ctx.sound.dinoHappy(this.type);
+    this.ctx.fx.emote(this.headTop, 'heart');
+    await this.jump(1.0, Math.PI * 2, 0.6);
+  }
+
+  /** Happy butt-wiggle with a fast tail wag and a little tune. */
+  async wiggle() {
+    const A = this.anim, a = this.a;
+    this.ctx.fx.emote(this.headTop, 'â™ª');
+    this.ctx.sound.dinoHappy(this.type);
+    A.to(a, { wag: 1 }, 0.2);
+    await A.play(1.2, (_, k) => {
+      const s = Math.sin(k * Math.PI * 8);
+      a.lean = s * 0.2;
+      a.headTilt = -s * 0.25;
+      a.squash = 1 + Math.abs(s) * 0.06;
+      a.eyes = 0.75; // happy squint
+    });
+    a.lean = 0;
+    a.headTilt = 0;
+    a.squash = 1;
+    await A.to(a, { wag: 0.25, eyes: 1 }, 0.3);
+  }
+
+  /** A big, happy (not scary) "RAWR!" with a proud chest puff. */
+  async rawr() {
+    const A = this.anim, a = this.a;
+    await A.to(a, { squash: 0.88, headLift: -0.15 }, 0.15);
+    this.ctx.sound.rawr(this.type);
+    this.ctx.fx.emote(this.headTop, '!');
+    await A.to(a, { squash: 1.15, headLift: 0.5, jaw: 1.4, eyes: 0.6 }, 0.2, ease.outBack);
+    await A.play(0.6, (_, k) => (a.headTilt = Math.sin(k * Math.PI * 6) * 0.12 * (1 - k)));
+    await A.to(a, { squash: 1, headLift: 0, jaw: 0, eyes: 1, headTilt: 0 }, 0.35, ease.outBack);
+    await this.jump(0.5);
+  }
+
+  /** So full it flops over onto its side, kicks its legs, and rolls back up. */
+  async flop() {
+    const A = this.anim, a = this.a;
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    const lie = 0.6 * this.size;
+    this.ctx.sound.boing();
+    await A.play(0.45, (e) => {
+      a.lean = dir * 1.25 * e;
+      a.hop = Math.sin(e * Math.PI) * 0.6 + lie * e; // lift so it lies on the grass, not in it
+    }, ease.outBack);
+    a.hop = lie;
+    this.walking = true; // legs kick in the air
+    this.ctx.fx.emote(this.headTop, 'heart');
+    this.ctx.sound.dinoHappy(this.type);
+    await A.play(1.0, (_, k) => {
+      a.lean = dir * (1.25 + Math.sin(k * Math.PI * 4) * 0.08);
+      a.eyes = 0.7;
+    });
+    this.walking = false;
+    await A.play(0.45, (e) => {
+      a.lean = dir * 1.25 * (1 - e);
+      a.hop = Math.sin(e * Math.PI) * 0.5 + lie * (1 - e);
+    }, ease.inOutCubic);
+    a.lean = 0;
+    a.hop = 0;
+    a.eyes = 1;
+    await this.jump(0.4);
+  }
+
+  /** Three quick happy stomps with little dust puffs. */
+  async stomp() {
+    const A = this.anim, a = this.a;
+    this.ctx.sound.dinoHappy(this.type);
+    for (let i = 0; i < 3; i++) {
+      await A.play(0.16, (_, k) => {
+        a.hop = Math.sin(k * Math.PI) * 0.35;
+        a.lean = (i % 2 ? 1 : -1) * 0.12 * Math.sin(k * Math.PI);
+      });
+      a.hop = 0;
+      a.lean = 0;
+      this.ctx.sound.munch();
+      this.root.getWorldPosition(tmp);
+      this.ctx.particles.puff(tmp.setY(tmp.y + 0.2), { count: 5, color: 0xf3e6c4, speed: 2.5, size: 0.35 * this.size + 0.15, life: 0.5 });
+      await A.play(0.12, (_, k) => (a.squash = 1 - Math.sin(k * Math.PI) * 0.15));
+    }
+    a.squash = 1;
+    this.ctx.fx.emote(this.headTop, 'heart');
+    await this.jump(0.7);
+  }
+
+  /** "Yum yum yum!" - eager nods, then licks its lips. */
+  async nod() {
+    const A = this.anim, a = this.a;
+    this.ctx.fx.emote(this.headTop, 'heart');
+    this.ctx.sound.dinoHappy(this.type);
+    await A.play(1.0, (_, k) => {
+      a.headLift = Math.sin(k * Math.PI * 6) * 0.35;
+      a.eyes = 0.75;
+      a.wag = 0.8;
+    });
+    a.headLift = 0;
+    // lick
+    this.mouthPos(tmp);
+    this.forward(tmp2);
+    this.tongueAim.copy(tmp).addScaledVector(tmp2, 0.8 * this.size).add(tmp2.set(0, 0.25, 0));
+    await A.to(a, { jaw: 0.6 }, 0.1);
+    await A.play(0.4, (_, k) => (a.tongue = Math.sin(k * Math.PI)));
+    a.tongue = 0;
+    await A.to(a, { jaw: 0, eyes: 1, wag: 0.25 }, 0.25);
+  }
+
+  /** Full-belly party: one of a few bigger celebrations. */
+  async party() {
+    const pick = Math.floor(Math.random() * 3);
+    if (pick === 0) return this.dance();
+    if (pick === 1) {
+      await this.spin();
+      return this.flop();
+    }
+    await this.stomp();
+    return this.wiggle();
+  }
+
   /** "Ah... ah... CHOO!"  onChoo fires at the sneeze. */
   async sneeze(onChoo) {
     const A = this.anim, a = this.a, sound = this.ctx.sound;

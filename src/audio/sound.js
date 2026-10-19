@@ -262,6 +262,14 @@ export class Sound {
     this.noise({ dur, vol: 0.05, filter: 'highpass', f: 2500, attack: 1.2 });
   }
 
+  /** A cute, proud "rawr" (low and growly but bouncy, never scary). */
+  rawr(type) {
+    const base = type === 'longneck' ? 150 : type === 'trike' ? 210 : 175;
+    this.vowel({ dur: 0.45, p1: base, p2: base * 1.35, f1: 650, f2: 1050, vol: 0.32 });
+    this.noise({ dur: 0.35, vol: 0.06, filter: 'bandpass', f: 600, q: 1.5 });
+    this.tone({ type: 'sine', f: 900, f2: 1500, dur: 0.12, vol: 0.06, at: 0.42 });
+  }
+
   happy() {
     [523, 659, 784, 1046].forEach((f, i) => this.tone({ type: 'triangle', f, dur: 0.18, vol: 0.18, at: i * 0.07 }));
   }

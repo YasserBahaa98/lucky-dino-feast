@@ -20,12 +20,13 @@ import { FollowCam } from './camera.js';
 import { Input } from './input.js';
 import { loadSave, storeSave } from './save.js';
 
-const FEED_RANGE = 9; // how close (sideways) Lucky must be for the Feed button
+const FEED_RANGE = 13; // how close (sideways) Lucky must be for the Feed button
 const CATCH_RANGE = 4.8;
 const BABY_RANGE = 6.5; // babies are on the ground, so be generous
 const WAKE_RANGE = 10;
 const HOME_RANGE = 10; // bring the babies this close to their parent
 const SPAWN = { x: 0, y: 9, z: -30, yaw: 0 };
+const BABY_COUNT = 4; // lost babies per rescue: two sleepy (in his feet), two playful (on his back)
 // babies are about Lucky's size (the long-neck is long, so a bit smaller)
 const BABY_SIZE = { rex: 0.23, trike: 0.24, longneck: 0.18 };
 // how high each dino's back is (at full size), so Lucky's feet can hold a baby by its back
@@ -166,7 +167,7 @@ export class Game {
       d.mouthPos(v1);
       const dh = Math.hypot(v1.x - p.pos.x, v1.z - p.pos.z);
       const dy = p.pos.y - v1.y;
-      if (dh < FEED_RANGE && dy > -4 && dy < 14) {
+      if (dh < FEED_RANGE && dy > -6 && dy < 18) {
         const score = dh + Math.abs(dy) * 0.3;
         if (score < best) {
           best = score;
@@ -341,7 +342,7 @@ export class Game {
       d.wanderT = rand(2, 6);
       if (isParent) {
         d.bubble.setFruit('baby');
-        d.bubble.setPips(2, [0xff7eb6, 0xff7eb6]);
+        d.bubble.setPips(BABY_COUNT, Array(BABY_COUNT).fill(0xff7eb6));
       } else {
         this.setRequest(d, this.makeRequest(n, fruits[i % fruits.length]));
         d.wander = n >= 2 && !isLeader && chance(0.35);
@@ -450,7 +451,7 @@ export class Game {
     d.busy = true;
     const A = this.anim;
     const wants = d.wants;
-    const endWatch = this.watchDino(d, 3);
+    const endWatch = this.watchDino(d, 3.5);
     this.player.feedDive();
     this.sound.toss();
     this.hud.hintDone('feed');
@@ -466,7 +467,7 @@ export class Game {
 
     if (bounce) {
       // the chase is fun to watch, but don't keep Lucky waiting for all of it
-      A.wait(1.6).then(endWatch);
+      A.wait(2.1).then(endWatch);
       await this.fruitBounce(d, fruit, from);
       return;
     }
@@ -506,7 +507,7 @@ export class Game {
     await d.act(() => d.chew(3));
     if (worm) await this.sillyWorm(d);
     this.player.happy();
-    A.wait(0.25).then(() => endWatch?.());
+    A.wait(0.75).then(() => endWatch?.());
     if (d.eaten >= d.need) {
       await this.dinoFull(d);
     } else {
@@ -517,7 +518,7 @@ export class Game {
         d.bubble.setFruit(next);
       }
       d.busy = false;
-      d.act(() => d.happyBounce());
+      d.act(() => d.react());
     }
   }
 
@@ -530,7 +531,7 @@ export class Game {
     this.hud.setProgress(this.dinos);
     this.sound.happy();
     if (chance(0.5)) this.fastooka();
-    await d.act(() => d.dance());
+    await d.act(() => d.party());
     await A.to(d.bubble, { scale: 0 }, 0.35, ease.inBack);
     this.checkLevelDone();
   }
@@ -617,22 +618,23 @@ export class Game {
     let spot = candidates.find((s) => Math.hypot(s[0] - pp.x, s[1] - pp.z) > 45) ?? candidates.find((s) => Math.hypot(s[0] - pp.x, s[1] - pp.z) > 25) ?? candidates[0];
     const [x, z] = spot;
     const yaw = rand(0, Math.PI * 2);
-    const babies = [0, 1].map((k) => {
+    // a little huddle: two sleepy ones and two playful ones
+    const babies = Array.from({ length: BABY_COUNT }, (_, k) => {
       const b = new Dino(parent.type, this.ctx, { size: BABY_SIZE[parent.type], variant: parent.pal ? 'snow' : null });
-      const sx = Math.cos(yaw) * (k ? 0.9 : -0.9), sz = -Math.sin(yaw) * (k ? 0.9 : -0.9);
-      b.place(x + sx, z + sz, yaw + (k ? -0.4 : 0.4));
+      const a = yaw + (k / BABY_COUNT) * Math.PI * 2;
+      b.place(x + Math.sin(a) * 1.1, z + Math.cos(a) * 1.1, a + Math.PI + rand(-0.4, 0.4));
       b.noChomp = true;
       b.noHop = true;
       b.noBubble = true;
       b.full = true; // babies don't eat; they just need to get home
       b.isBaby = true;
-      b.playful = k === 1;
+      b.playful = k % 2 === 1;
       if (!b.playful) b.a.sleep = 1;
       b.scaredT = rand(2, 5);
       b.playT = rand(1, 3);
       b.scaredTarget = 0;
       this.scene.add(b.root);
-      b.act(() => b.popIn(0.6 + k * 0.3));
+      b.act(() => b.popIn(0.6 + k * 0.2));
       return b;
     });
     this.babies = babies;
@@ -662,10 +664,14 @@ export class Game {
     p.carrying = true;
     A.to(model.a, { dangle: 1 }, 0.3, ease.outBack);
 
-    // the sleepy one goes in his feet, the playful one hops onto his back
-    const ordered = [r.babies.find((b) => !b.playful), r.babies.find((b) => b.playful)];
-    await Promise.all(ordered.map(async (b, k) => {
-      const mount = k === 0 ? model.feetMount : model.backMount;
+    // the sleepy ones go in his feet (one each), the playful ones hop onto his back
+    const sleepy = r.babies.filter((b) => !b.playful);
+    const playful = r.babies.filter((b) => b.playful);
+    const seats = [
+      ...sleepy.map((b, i) => ({ b, mount: model.feetMounts[i], feet: true, splay: i ? 0.2 : -0.2 })),
+      ...playful.map((b, i) => ({ b, mount: model.backMounts[i], feet: false, splay: 0 })),
+    ];
+    await Promise.all(seats.map(async ({ b, mount, feet, splay }, k) => {
       b.busy = true;
       b.a.scared = 0;
       b.scaredTarget = 0;
@@ -673,19 +679,20 @@ export class Game {
         this.fx.emote(b.headTop, 'heart');
         this.sound.dinoHappy(b.type);
       }
-      await A.wait(k * 0.25);
+      await A.wait(k * 0.18);
       const from = b.root.position.clone();
       await this.throwArc(b.root, from, (o) => mount.getWorldPosition(o), 0.5, 2.2, false);
       mount.add(b.root);
       b.carried = true;
       b.root.rotation.set(0, 0, 0);
-      b.yaw = 0;
+      b.yaw = splay; // the two in his feet point a little outward so they don't bump
       b.a.spin = 0;
-      // the feet hold the sleepy baby by its back, hanging just below Lucky;
-      // the other one sits snugly on his back
+      // the feet hold the sleepy babies by their backs, hanging just below Lucky;
+      // the others sit snugly on his back, one behind the other
       const back = BACK_HEIGHT[b.type] * b.size;
-      b.root.position.set(0, k === 0 ? -back + 0.08 : -0.12, 0);
-      if (k === 1) b.a.squash = 0.82; // sitting down
+      b.root.position.set(0, feet ? -back + 0.08 : -0.12, 0);
+      b.seatY = b.root.position.y;
+      if (!feet) b.a.squash = 0.82; // sitting down
       this.sound.pop(1.4);
       b.busy = false;
     }));
@@ -732,13 +739,13 @@ export class Game {
         if (b.playful) {
           // riding on his back, wiggling and bouncing to the wing beats
           a.wag = 1;
-          a.lean = Math.sin(t * 3) * 0.12;
-          a.headTilt = Math.sin(t * 2.2) * 0.18;
-          b.root.position.y = -0.12 + Math.max(0, Math.sin(model.phase)) * 0.06;
+          a.lean = Math.sin(t * 3 + b.seed) * 0.12;
+          a.headTilt = Math.sin(t * 2.2 + b.seed) * 0.18;
+          b.root.position.y = b.seatY + Math.max(0, Math.sin(model.phase + b.seed)) * 0.06;
           // a stunt is a bit scary... then fun
           b.scaredTarget = p.stunting ? 0.8 : 0;
         } else {
-          a.lean = Math.sin(t * 1.4) * 0.06;
+          a.lean = Math.sin(t * 1.4 + b.seed) * 0.06;
         }
       }
     }
@@ -754,14 +761,13 @@ export class Game {
     const r = this.rescue;
     r.state = 'home';
     const A = this.anim, p = this.player, parent = r.parent;
-    const pts = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+    const pts = [new THREE.Vector3(), new THREE.Vector3(), ...r.babies.map(() => new THREE.Vector3())];
     const endWatch = this.watch(parent.root.position, () => {
       parent.topPos(pts[0]);
       parent.root.getWorldPosition(pts[1]);
-      r.babies[0].root.getWorldPosition(pts[2]);
-      r.babies[1].root.getWorldPosition(pts[3]);
+      r.babies.forEach((b, i) => b.root.getWorldPosition(pts[i + 2]));
       return pts;
-    }, 5.5);
+    }, 6);
     parent.busy = true;
     this.fx.emote(parent.headTop, '!');
     this.sound.surprise();
@@ -771,6 +777,7 @@ export class Game {
     const fwd = parent.forward(v1).clone();
     const side = new THREE.Vector3(fwd.z, 0, -fwd.x);
     await A.wait(0.5);
+    const n = r.babies.length;
     await Promise.all(r.babies.map(async (b, k) => {
       await A.wait(k * 0.2);
       this.scene.attach(b.root);
@@ -779,11 +786,14 @@ export class Game {
       b.yaw = p.yaw;
       b.a.squash = 1;
       b.a.lean = 0;
-      let x = pp.x + fwd.x * 2.6 * parent.size + side.x * (k ? 1.4 : -1.4);
-      let z = pp.z + fwd.z * 2.6 * parent.size + side.z * (k ? 1.4 : -1.4);
+      // land in a little arc in front of the parent
+      const ang = (k - (n - 1) / 2) * 0.55;
+      const dist = 2.8 * parent.size;
+      const dx = fwd.x * Math.cos(ang) + side.x * Math.sin(ang), dz = fwd.z * Math.cos(ang) + side.z * Math.sin(ang);
+      let x = pp.x + dx * dist, z = pp.z + dz * dist;
       if (this.world.heightAt(x, z) < 0.8) {
-        x = pp.x + side.x * (k ? 2.6 : -2.6);
-        z = pp.z + side.z * (k ? 2.6 : -2.6);
+        x = pp.x + side.x * (k - (n - 1) / 2) * 1.6;
+        z = pp.z + side.z * (k - (n - 1) / 2) * 1.6;
       }
       const land = new THREE.Vector3(x, this.world.heightAt(x, z), z);
       await this.throwArc(b.root, b.root.position.clone(), (o) => o.copy(land), 0.7, 2.5, false);
@@ -795,10 +805,9 @@ export class Game {
     p.carrying = false;
     A.to(p.model.a, { dangle: 0 }, 0.4);
 
-    // the sleepy one wakes up, everyone bounces, and the parent gives them a cuddle
-    const sleepy = r.babies.find((b) => !b.playful);
-    await sleepy.act(() => sleepy.wake());
-    parent.bubble.markEaten(2);
+    // the sleepy ones wake up, everyone bounces, and the parent gives them a cuddle
+    await Promise.all(r.babies.filter((b) => !b.playful).map((b) => b.act(() => b.wake())));
+    parent.bubble.markEaten(n);
     for (const b of r.babies) {
       b.a.wag = 1;
       b.act(() => b.jump(0.5, Math.PI * 2, 0.4));
@@ -806,7 +815,8 @@ export class Game {
     }
     this.sound.dinoHappy(parent.type);
     await A.wait(0.5);
-    const between = r.babies[0].root.position.clone().add(r.babies[1].root.position).multiplyScalar(0.5);
+    const between = new THREE.Vector3();
+    for (const b of r.babies) between.addScaledVector(b.root.position, 1 / n);
     await parent.act(() => parent.nuzzle(between));
     endWatch();
     this.fastooka(true);

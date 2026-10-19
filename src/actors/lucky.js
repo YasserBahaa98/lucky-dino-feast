@@ -53,9 +53,9 @@ export class LuckyModel {
     this.buildTail();
     this.buildFeet();
 
-    // where carried babies ride: one held in his feet, one on his back between the wings
-    this.feetMount = group(this.stunt, [0, -0.62, 0.05]);
-    this.backMount = group(this.stunt, [0, 0.34, -0.22]);
+    // where carried babies ride: one held in each foot, two sitting on his back in a row
+    this.feetMounts = [group(this.stunt, [-0.3, -0.62, 0.05]), group(this.stunt, [0.3, -0.62, 0.05])];
+    this.backMounts = [group(this.stunt, [0, 0.36, -0.05]), group(this.stunt, [0, 0.24, -0.55])];
 
     // a bug he's saving for a dinosaur who asked for one
     this.beakBug = group(this.head, [0, -0.1, 0.62]);

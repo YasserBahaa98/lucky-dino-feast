@@ -18,8 +18,8 @@ offline-capable PWA on GitHub Pages. No accounts, no ads, no failing.
 
 | Button | What it does |
 | --- | --- |
-| ◀ ▶ | Hold to turn |
-| Wings ↑ / Wings ↓ | Hold to fly up or down (same speed). Let go and Lucky just hovers |
+| â—€ â–¶ | Hold to turn |
+| Wings â†‘ / Wings â†“ | Hold to fly up or down (same speed). Let go and Lucky just hovers |
 | Fruit | Appears near a hungry dino: Lucky stops, tosses the fruit, and watches it munch |
 | Bug | Appears near a glowing bug: gobble it as a snack |
 | Baby | Appears near lost babies: pick them up and fly them home |
@@ -28,7 +28,7 @@ offline-capable PWA on GitHub Pages. No accounts, no ads, no failing.
 Fill every dinosaur's belly (the dots in the thought bubble) to finish a level. Dinosaurs ask for different
 things: one fruit a few times, fruit in a set order (coloured dots), or a bug (catch one first and Lucky
 keeps it in his beak). Some are asleep until Lucky flies by, some wander, and from level 3 a grown-up leads
-a little herd. On even levels two lost babies need carrying home to their parent (follow the arrow).
+a little herd. On even levels four lost babies need carrying home to their parent (follow the arrow): two in Lucky's feet, two on his back.
 
 Islands open up as the levels go by, including a snowy island. Look for six hidden eggs (one is way up in
 the sky) and swoop through the ring loop for a speed boost. Some levels bring a cosy dusk (bugs glow
