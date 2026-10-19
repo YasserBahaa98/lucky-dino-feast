@@ -18,8 +18,8 @@ offline-capable PWA on GitHub Pages. No accounts, no ads, no failing.
 
 | Button | What it does |
 | --- | --- |
-| â—€ â–¶ | Hold to turn |
-| Wings â†‘ / Wings â†“ | Hold to fly up or down (same speed). Let go and Lucky just hovers |
+| ◀ ▶ | Hold to turn |
+| Wings ↑ / Wings ↓ | Hold to fly up or down (same speed). Let go and Lucky just hovers |
 | Fruit | Appears near a hungry dino: Lucky stops, tosses the fruit, and watches it munch |
 | Bug | Appears near a glowing bug: gobble it as a snack |
 | Baby | Appears near lost babies: pick them up and fly them home |

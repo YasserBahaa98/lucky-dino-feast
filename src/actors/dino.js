@@ -472,7 +472,7 @@ export class Dino {
   /** Happy butt-wiggle with a fast tail wag and a little tune. */
   async wiggle() {
     const A = this.anim, a = this.a;
-    this.ctx.fx.emote(this.headTop, 'â™ª');
+    this.ctx.fx.emote(this.headTop, '♪');
     this.ctx.sound.dinoHappy(this.type);
     A.to(a, { wag: 1 }, 0.2);
     await A.play(1.2, (_, k) => {
