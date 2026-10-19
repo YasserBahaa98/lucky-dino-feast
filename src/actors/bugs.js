@@ -92,8 +92,11 @@ export class Bugs {
     const f = Math.sin(t * 40 + b.phase) * 0.7;
     for (const { w, sx } of b.wings) w.rotation.z = sx * f;
     b.glow.material.opacity = 0.75 + Math.sin(t * 5 + b.phase) * 0.25;
-    b.glow.scale.setScalar(2.0 + Math.sin(t * 5 + b.phase) * 0.3);
+    // at dusk the bugs glow bigger and brighter
+    b.glow.scale.setScalar((2.0 + Math.sin(t * 5 + b.phase) * 0.3) * (1 + this.glowBoost * 1.2));
   }
+
+  glowBoost = 0;
 
   nearest(pos, range) {
     let best = null, bd = range * range;

@@ -6,6 +6,15 @@ import { ThoughtBubble } from './fruit.js';
 
 export const DINO_TYPES = ['rex', 'longneck', 'trike'];
 
+// Island colour variants (body, belly, spots). The snowy island has fluffy pale dinos.
+const PALETTES = {
+  snow: {
+    rex: [0xf4f8ff, 0xffffff, 0x9cc8ff],
+    longneck: [0xe6f0ff, 0xffffff, 0xa9c4ff],
+    trike: [0xfff4f8, 0xffffff, 0xb6d6ff],
+  },
+};
+
 const BLUSH = 0xff9bb3;
 const MOUTH = 0x8a2f3a;
 const tongueGeo = new THREE.CapsuleGeometry(0.16, 1, 4, 10).translate(0, 0.5, 0).rotateX(Math.PI / 2);
@@ -18,13 +27,15 @@ const tmp2 = new THREE.Vector3();
  * runs every frame; scripted moments tween the values in `this.a`.
  */
 export class Dino {
-  constructor(type, ctx) {
+  constructor(type, ctx, { size = 1, variant = null } = {}) {
     this.type = type;
     this.ctx = ctx;
     this.anim = ctx.anim;
+    this.size = size; // babies are small, parents a little bigger
+    this.pal = PALETTES[variant]?.[type] ?? null;
     this.root = new THREE.Group();
     this.rig = group(this.root);
-    this.a = { hop: 0, squash: 1, spin: 0, jaw: 0, eyes: 1, tongue: 0, headLift: 0, headTilt: 0, lean: 0, wag: 0, scale: 1 };
+    this.a = { hop: 0, squash: 1, spin: 0, jaw: 0, eyes: 1, tongue: 0, headLift: 0, headTilt: 0, lean: 0, wag: 0, scale: 1, sleep: 0, scared: 0 };
     this.legs = [];
     this.tail = [];
     this.neck = [];
@@ -37,10 +48,11 @@ export class Dino {
     else this.buildTrike();
 
     // Lucky glides over dinosaurs instead of through them
-    this.height = { rex: 4.4, longneck: 6.2, trike: 3.5 }[type];
-    this.radius = type === 'longneck' ? 2.6 : 2.2;
+    this.height = { rex: 4.4, longneck: 6.2, trike: 3.5 }[type] * size;
+    this.radius = (type === 'longneck' ? 2.6 : 2.2) * size;
+    this.shadowSize = (type === 'longneck' ? 4.6 : 3.6) * size;
 
-    this.shadow = blobShadow(type === 'longneck' ? 4.6 : 3.6);
+    this.shadow = blobShadow(this.shadowSize);
     this.shadow.position.y = 0.06;
     this.root.add(this.shadow);
 
@@ -70,6 +82,21 @@ export class Dino {
     this.busy = false;
     this.full = false;
     this.wasNear = false;
+    this.carried = false; // riding on Lucky (lost babies)
+    this.nextZ = rand(0.5, 2);
+  }
+
+  /** Top of the head, in world space: what the camera needs to keep in frame. */
+  topPos(out) {
+    this.root.getWorldPosition(out);
+    out.y += this.height * this.a.scale;
+    return out;
+  }
+
+  centerPos(out) {
+    this.root.getWorldPosition(out);
+    out.y += this.height * this.a.scale * 0.5;
+    return out;
   }
 
 
@@ -80,7 +107,7 @@ export class Dino {
   // ---------- builders ----------
 
   buildRex() {
-    const C = 0x74d46c, B = 0xe6f8b4, S = 0x4fb04c;
+    const [C, B, S] = this.pal ?? [0x74d46c, 0xe6f8b4, 0x4fb04c];
     const r = this.rig;
     mesh('sphere', C, { s: [1.0, 1.12, 1.05], p: [0, 1.65, 0], parent: r });
     mesh('sphere', B, { s: [0.72, 0.88, 0.5], p: [0, 1.5, 0.58], parent: r });
@@ -115,7 +142,7 @@ export class Dino {
   }
 
   buildLongneck() {
-    const C = 0x8fb8ff, B = 0xdde9ff, S = 0x6d93e6;
+    const [C, B, S] = this.pal ?? [0x8fb8ff, 0xdde9ff, 0x6d93e6];
     const r = this.rig;
     mesh('sphere', C, { s: [1.25, 1.0, 1.7], p: [0, 2.0, 0], parent: r });
     mesh('sphere', B, { s: [1.0, 0.7, 1.35], p: [0, 1.7, 0.1], parent: r });
@@ -155,12 +182,13 @@ export class Dino {
   }
 
   buildTrike() {
-    const C = 0xffad5c, B = 0xffe3bd, F = 0xff7096, H = 0xfff3d6;
+    const [C, B, S] = this.pal ?? [0xffad5c, 0xffe3bd, 0xf28a2e];
+    const F = 0xff7096, H = 0xfff3d6;
     const r = this.rig;
     mesh('sphere', C, { s: [1.15, 0.92, 1.4], p: [0, 1.3, -0.1], parent: r });
     mesh('sphere', B, { s: [0.9, 0.6, 1.1], p: [0, 1.05, 0], parent: r });
     for (const [x, z, s] of [[0.45, -0.3, 0.25], [-0.4, 0.2, 0.22], [0.05, -0.85, 0.2]]) {
-      mesh('sphere', 0xf28a2e, { s: [s, s * 0.45, s], p: [x, 2.1, z], parent: r });
+      mesh('sphere', S, { s: [s, s * 0.45, s], p: [x, 2.1, z], parent: r });
     }
     for (const [sx, sz, ph] of [[1, 1, 0], [-1, 1, Math.PI], [1, -1, Math.PI], [-1, -1, 0]]) {
       const leg = group(r, [sx * 0.66, 0.85, sz * 0.72 - 0.1]);
@@ -220,16 +248,17 @@ export class Dino {
     // turn toward Lucky when he is close and we're hungry
     tmp.copy(luckyPos).sub(pos);
     const distH = Math.hypot(tmp.x, tmp.z);
-    const near = distH < 18;
+    const awake = a.sleep < 0.5 && !this.carried;
+    const near = distH < 18 && awake;
     const toLucky = Math.atan2(tmp.x, tmp.z);
     if (near && !this.walking && !this.full && this.acting === 0) {
       this.yaw = dampAngle(this.yaw, toLucky, 1.4, dt);
     }
     this.root.rotation.y = this.yaw + a.spin;
 
-    // head follows Lucky
-    let ly = Math.sin(t * 0.6 + this.seed) * 0.35;
-    let lp = 0;
+    // head follows Lucky (sleepy heads droop instead)
+    let ly = Math.sin(t * 0.6 + this.seed) * 0.35 * (1 - a.sleep);
+    let lp = -a.sleep * 0.45;
     if (near) {
       ly = clamp(wrapAngle(toLucky - this.yaw), -0.9, 0.9);
       this.head.getWorldPosition(tmp2);
@@ -240,7 +269,7 @@ export class Dino {
 
     // hungry: snap jaws now and then (additive, never fights scripted moves)
     let chomp = 0;
-    if (!this.full && !this.busy) {
+    if (!this.full && !this.busy && awake && !this.noChomp) {
       this.nextChomp -= dt;
       if (this.nextChomp <= 0) {
         this.chompT = 0.7;
@@ -269,16 +298,20 @@ export class Dino {
     this.jaw.rotation.x = clamp(a.jaw + chomp, 0, 1.4) * 0.55;
 
     // body: breathing + squash/stretch + hop
-    const breathe = 1 + Math.sin(t * 2.2 + this.seed) * 0.025;
-    const sq = a.squash * breathe;
+    // sleeping: slow, deep breaths and a slightly flattened, snuggled-down body
+    const breatheRate = 2.2 - a.sleep * 1.1;
+    const breathe = 1 + Math.sin(t * breatheRate + this.seed) * (0.025 + a.sleep * 0.03);
+    const sq = a.squash * breathe * (1 - a.sleep * 0.1);
     const inv = 1 / Math.sqrt(Math.max(sq, 0.2));
-    this.rig.scale.set(inv * a.scale, sq * a.scale, inv * a.scale);
+    const sc = a.scale * this.size;
+    this.rig.scale.set(inv * sc, sq * sc, inv * sc);
     this.rig.position.y = a.hop;
 
-    // waddle
+    // waddle; a scared baby trembles a little
     if (this.walking) this.walkPhase += dt * 10;
     const walkAmt = this.walking ? 1 : 0;
-    this.rig.rotation.z = Math.sin(this.walkPhase) * 0.1 * walkAmt + a.lean;
+    const tremble = Math.sin(t * 34 + this.seed) * 0.05 * a.scared;
+    this.rig.rotation.z = Math.sin(this.walkPhase) * 0.1 * walkAmt + a.lean + tremble;
     for (const leg of this.legs) {
       leg.g.rotation.x = damp(leg.g.rotation.x, Math.sin(this.walkPhase + leg.phase) * 0.6 * walkAmt, 12, dt);
     }
@@ -296,8 +329,9 @@ export class Dino {
       this.blinkT = rand(2, 5);
     }
     this.blink = Math.max(0, this.blink - dt * 7);
-    const blinkY = 1 - Math.sin(this.blink * Math.PI) * 0.9;
-    for (const e of this.eyes) e.scale.set(a.eyes, a.eyes * blinkY, a.eyes);
+    const blinkY = (1 - Math.sin(this.blink * Math.PI) * 0.9) * (1 - a.sleep * 0.9);
+    const eyes = a.eyes * (1 + a.scared * 0.25);
+    for (const e of this.eyes) e.scale.set(eyes, eyes * blinkY, eyes);
 
     // tongue
     this.tongue.visible = a.tongue > 0.02;
@@ -311,11 +345,12 @@ export class Dino {
 
     // shadow shrinks when we jump
     const sh = 1 - clamp(a.hop / 4, 0, 0.5);
-    this.shadow.scale.setScalar(sh * a.scale * (this.type === 'longneck' ? 4.6 : 3.6));
+    this.shadow.visible = !this.carried;
+    this.shadow.scale.setScalar(sh * a.scale * this.shadowSize);
     this.shadow.scale.y = 1;
 
     // idle "look at me!" hop when Lucky is nearby
-    if (near && !this.full && this.acting === 0 && !this.busy) {
+    if (near && !this.full && this.acting === 0 && !this.busy && !this.noHop) {
       this.nextHop -= dt;
       if (this.nextHop <= 0) {
         this.nextHop = rand(3, 6);
@@ -361,8 +396,9 @@ export class Dino {
     this.root.getWorldPosition(tmp);
     this.ctx.particles.puff(tmp.setY(tmp.y + 1), { count: 8, color: 0xffffff, speed: 3, size: 0.7 });
     await A.to(a, { scale: 1 }, 0.5, ease.outBack);
+    if (a.sleep > 0.5) return; // sleepyheads stay snoozing, no bubble until they wake
     this.jump(0.6);
-    await A.to(this.bubble, { scale: 1 }, 0.4, ease.outBack);
+    if (!this.noBubble) await A.to(this.bubble, { scale: 1 }, 0.4, ease.outBack);
   }
 
   async leave() {
@@ -460,6 +496,30 @@ export class Dino {
     await this.jump(1.3, 0, 0.5);
     await A.wait(0.3);
     await A.to(a, { eyes: 1 }, 0.4);
+  }
+
+  /** Big stretchy yawn, eyes open, then a happy wiggle. */
+  async wake() {
+    const A = this.anim, a = this.a;
+    this.ctx.sound.yawn(this.size < 0.6);
+    await A.to(a, { headLift: 0.5, jaw: 1.3, sleep: 0.4, squash: 1.12 }, 0.6, ease.inOutSine);
+    await A.wait(0.25);
+    await A.to(a, { headLift: 0, jaw: 0, sleep: 0, squash: 1, eyes: 1.25 }, 0.3, ease.outBack);
+    await A.play(0.4, (_, k) => (a.headTilt = Math.sin(k * Math.PI * 2) * 0.2));
+    a.headTilt = 0;
+    await A.to(a, { eyes: 1 }, 0.3);
+  }
+
+  /** Lean the head down toward a spot (a baby) for a cuddle. */
+  async nuzzle(target) {
+    const A = this.anim, a = this.a;
+    const pos = this.root.position;
+    const y0 = this.yaw, dy = wrapAngle(Math.atan2(target.x - pos.x, target.z - pos.z) - y0);
+    await A.play(0.35, (e) => (this.yaw = y0 + dy * e), ease.inOutSine);
+    await A.to(a, { headLift: -0.55, lean: 0.12 }, 0.35, ease.inOutSine);
+    this.ctx.fx.emote(this.headTop, 'heart');
+    await A.play(0.8, (_, k) => (a.headTilt = Math.sin(k * Math.PI * 3) * 0.22));
+    await A.to(a, { headLift: 0, lean: 0, headTilt: 0 }, 0.4, ease.outBack);
   }
 
   async walkTo(x, z, speed = 3.2) {

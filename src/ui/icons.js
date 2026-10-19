@@ -7,6 +7,21 @@ export const ICONS = {
   fly: S(`
     <path d="M50 58 C38 40 22 34 6 38 C16 46 22 54 26 64 C34 60 42 60 50 66 C58 60 66 60 74 64 C78 54 84 46 94 38 C78 34 62 40 50 58 Z" fill="#fff"/>
     <path d="M50 12 L66 32 L56 32 L56 46 L44 46 L44 32 L34 32 Z" fill="#fff"/>`),
+  down: S(`
+    <path d="M50 42 C38 24 22 18 6 22 C16 30 22 38 26 48 C34 44 42 44 50 50 C58 44 66 44 74 48 C78 38 84 30 94 22 C78 18 62 24 50 42 Z" fill="#fff"/>
+    <path d="M50 90 L66 70 L56 70 L56 56 L44 56 L44 70 L34 70 Z" fill="#fff"/>`),
+  egg: S(`
+    <path d="M50 10 C30 10 18 42 18 60 C18 80 32 92 50 92 C68 92 82 80 82 60 C82 42 70 10 50 10 Z" fill="#fff7d6" stroke="#e0b84a" stroke-width="4"/>
+    <circle cx="38" cy="52" r="7" fill="#ffb3d1"/><circle cx="62" cy="40" r="6" fill="#8fd3ff"/><circle cx="58" cy="70" r="8" fill="#9be38a"/>
+    <ellipse cx="36" cy="34" rx="5" ry="9" fill="#fff" opacity=".8"/>`),
+  baby: S(`
+    <ellipse cx="50" cy="60" rx="34" ry="28" fill="#74d46c" stroke="#3f8f3c" stroke-width="4"/>
+    <ellipse cx="50" cy="70" rx="20" ry="12" fill="#e6f8b4"/>
+    <circle cx="36" cy="50" r="10" fill="#fff"/><circle cx="64" cy="50" r="10" fill="#fff"/>
+    <circle cx="37" cy="52" r="6" fill="#1d1d2b"/><circle cx="63" cy="52" r="6" fill="#1d1d2b"/>
+    <circle cx="39" cy="49" r="2" fill="#fff"/><circle cx="65" cy="49" r="2" fill="#fff"/>
+    <path d="M40 30 C44 22 48 22 50 32 C52 22 58 22 60 30" fill="#4fb04c"/>
+    <circle cx="26" cy="64" r="5" fill="#ff9bb3"/><circle cx="74" cy="64" r="5" fill="#ff9bb3"/>`),
   stunt: S(`
     <path d="M50 16 A34 34 0 1 1 18 62" fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round"/>
     <path d="M6 52 L20 74 L34 54 Z" fill="#fff"/>

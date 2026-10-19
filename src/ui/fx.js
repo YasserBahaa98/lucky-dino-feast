@@ -30,6 +30,11 @@ export class Fx {
     return this.add(target, 'fx-emote', html, 1.2, 0.4);
   }
 
+  /** A floating "z" for sleepy dinosaurs. */
+  zzz(target) {
+    return this.add(target, 'fx-emote fx-zzz', 'z', 1.8, 0.3);
+  }
+
   fastooka(target) {
     // only one Fastooka bubble at a time
     for (const it of this.items) if (it.el.classList.contains('fx-fastooka')) it.life = Math.min(it.life, it.age + 0.01);

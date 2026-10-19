@@ -7,33 +7,48 @@ export const SOFT_RADIUS = 80; // starts gently turning back here
 export const MAX_ALT = 30;
 
 // Hand-placed islands so the world always looks the same.
-const ISLANDS = [
-  { x: 0, z: 0, r: 24, h: 3.5, kind: 'meadow' },
-  { x: -52, z: 30, r: 28, h: 4.5, kind: 'jungle' },
-  { x: 48, z: 52, r: 34, h: 4, kind: 'volcano', volcano: { h: 24, r: 14 } },
-  { x: 56, z: -34, r: 22, h: 3, kind: 'beach' },
-  { x: -40, z: -52, r: 24, h: 4, kind: 'jungle' },
-  { x: 6, z: -78, r: 12, h: 2.5, kind: 'meadow' },
-  { x: -86, z: -8, r: 13, h: 3, kind: 'meadow' },
-  { x: 86, z: 12, r: 11, h: 2.5, kind: 'beach' },
-  { x: -6, z: 82, r: 14, h: 3, kind: 'jungle' },
+// `unlock` is the level an island's dinosaurs start showing up on, so the map opens up bit by bit.
+export const ISLANDS = [
+  { x: 0, z: 0, r: 24, h: 3.5, kind: 'meadow', unlock: 1 },
+  { x: -52, z: 30, r: 28, h: 4.5, kind: 'jungle', unlock: 1 },
+  { x: 48, z: 52, r: 34, h: 4, kind: 'volcano', volcano: { h: 24, r: 14 }, unlock: 3 },
+  { x: 56, z: -34, r: 22, h: 3, kind: 'beach', unlock: 2 },
+  { x: -40, z: -52, r: 24, h: 4, kind: 'snow', peak: { x: -46, z: -61, h: 13, r: 12 }, unlock: 2 },
+  { x: 6, z: -78, r: 12, h: 2.5, kind: 'meadow', unlock: 4 },
+  { x: -86, z: -8, r: 13, h: 3, kind: 'meadow', unlock: 4 },
+  { x: 86, z: 12, r: 11, h: 2.5, kind: 'beach', unlock: 5 },
+  { x: -6, z: 82, r: 14, h: 3, kind: 'jungle', unlock: 5 },
 ];
 
 // Places where dinosaurs can stand.
 export const DINO_SPOTS = [
-  [0, 7], [-9, -6], [9, -5],
-  [-47, 38], [-60, 22], [-44, 22],
-  [30, 48], [56, 34], [36, 66],
-  [52, -29], [62, -40],
-  [-35, -46], [-46, -58],
+  [0, 7], [-9, -6], [9, -5], [12, 10], [-12, 9],
+  [-47, 38], [-60, 22], [-44, 22], [-62, 40],
+  [30, 48], [56, 34], [36, 66], [62, 70],
+  [52, -29], [62, -40], [46, -42],
+  [-35, -46], [-30, -58], [-42, -40],
   [6, -78], [-86, -8], [-6, 82], [86, 12],
 ];
+
+/** Which island a point belongs to (nearest centre within reach), or null over open water. */
+export function islandAt(x, z, reach = 1.25) {
+  let best = null, bd = Infinity;
+  for (const isl of ISLANDS) {
+    const d = Math.hypot(x - isl.x, z - isl.z) / isl.r;
+    if (d < reach && d < bd) {
+      bd = d;
+      best = isl;
+    }
+  }
+  return best;
+}
 
 const GROUND_COLORS = {
   meadow: [0x8ad65a, 0x7ccc52],
   jungle: [0x5cbf4a, 0x4fb244],
   beach: [0x9bdc63, 0x8fd35c],
   volcano: [0x86c95a, 0x7abf52],
+  snow: [0xf4f9ff, 0xe4f0fb],
 };
 
 function islandHeight(isl, x, z) {
@@ -50,6 +65,12 @@ function islandHeight(isl, x, z) {
     let cone = v.h * Math.pow(k, 1.25);
     if (dist < 3.2) cone -= (3.2 - dist) * 1.6; // crater
     y += cone;
+  }
+  if (isl.peak) {
+    // a rounded snowy hill, off to one side so the flat part stays free for dinosaurs
+    const pk = isl.peak;
+    const k = Math.max(0, 1 - Math.hypot(x - pk.x, z - pk.z) / pk.r);
+    y += pk.h * k * k * (3 - 2 * k);
   }
   return y;
 }
@@ -156,8 +177,8 @@ export class World {
 
     // terrain: a polar grid per island that follows heightAt exactly
     for (const isl of ISLANDS) {
-      const rings = isl.volcano ? 34 : 20;
-      const segs = isl.volcano ? 64 : 44;
+      const rings = isl.volcano || isl.peak ? 34 : 20;
+      const segs = isl.volcano || isl.peak ? 64 : 44;
       const R = isl.r * 1.15;
       const pos = [];
       const idx = [];
@@ -190,7 +211,8 @@ export class World {
       for (let f = 0; f < p.count; f += 3) {
         const y = (p.getY(f) + p.getY(f + 1) + p.getY(f + 2)) / 3;
         let hex;
-        if (y < 0.7) hex = 0xf5dc95;
+        if (y < 0.7) hex = isl.kind === 'snow' ? 0xdfe9f2 : 0xf5dc95;
+        else if (isl.peak && y > isl.h + 4) hex = 0xffffff;
         else if (isl.volcano && y > isl.h + 15) hex = 0x6f5a4f;
         else if (isl.volcano && y > isl.h + 3) hex = 0x9a7b66;
         else hex = Math.random() < 0.5 ? g1 : g2;
@@ -290,9 +312,30 @@ export class World {
       place(rock, 0xb8b2a6, x, y0 + s * 0.3, z, s, s * 0.7, s, rand(0, 3), rand(0, 3), 0);
     };
 
+    const pine = (x, z) => {
+      const y0 = this.heightAt(x, z);
+      const h = rand(3, 4.5);
+      place(cyl, 0x8f6234, x, y0 + 0.5, z, 0.25, 1, 0.25);
+      for (let i = 0; i < 3; i++) {
+        const w = (1.6 - i * 0.42) * (h / 4);
+        const yy = y0 + 1 + i * h * 0.24;
+        place(cone, 0x2f8a5a, x, yy + h * 0.18, z, w, h * 0.38, w);
+        place(cone, 0xffffff, x, yy + h * 0.33, z, w * 0.45, h * 0.12, w * 0.45);
+      }
+    };
+    const snowman = (x, z) => {
+      const y0 = this.heightAt(x, z);
+      place(ball, 0xffffff, x, y0 + 0.6, z, 0.75, 0.7, 0.75);
+      place(ball, 0xffffff, x, y0 + 1.5, z, 0.5, 0.48, 0.5);
+      place(ball, 0xffffff, x, y0 + 2.15, z, 0.36, 0.34, 0.36);
+      place(cone, 0xff8a1f, x, y0 + 2.15, z + 0.4, 0.07, 0.35, 0.07, Math.PI / 2, 0, 0);
+      for (const sx of [-1, 1]) place(ballLow, 0x1b1b24, x + sx * 0.13, y0 + 2.27, z + 0.3, 0.05, 0.05, 0.05);
+      place(cyl, 0xff5a7a, x, y0 + 1.86, z, 0.42, 0.12, 0.42);
+    };
+
     for (const isl of ISLANDS) {
       const area = isl.r * isl.r;
-      const count = Math.floor(area / (isl.kind === 'jungle' ? 22 : 40));
+      const count = Math.floor(area / (isl.kind === 'jungle' ? 22 : isl.kind === 'snow' ? 30 : 40));
       for (let i = 0; i < count; i++) {
         const a = rand(0, Math.PI * 2);
         const d = Math.sqrt(Math.random()) * isl.r * 0.82;
@@ -302,7 +345,11 @@ export class World {
         if (isl.volcano && Math.hypot(x - isl.x, z - isl.z) < isl.volcano.r + 1) continue;
         if (blocked(x, z, 8)) continue;
         const roll = Math.random();
-        if (isl.kind === 'jungle') {
+        if (isl.kind === 'snow') {
+          if (roll < 0.7) pine(x, z);
+          else if (roll < 0.8) snowman(x, z);
+          else stone(x, z);
+        } else if (isl.kind === 'jungle') {
           if (roll < 0.45) palm(x, z);
           else if (roll < 0.75) roundTree(x, z);
           else if (roll < 0.95) bush(x, z);

@@ -97,6 +97,7 @@ export class Sound {
     const t = this.now + at;
     const src = this.ctx.createBufferSource();
     src.buffer = this.noiseBuf;
+    src.loop = true;
     const fl = this.ctx.createBiquadFilter();
     fl.type = filter;
     fl.frequency.setValueAtTime(f, t);
@@ -226,6 +227,39 @@ export class Sound {
     const base = type === 'longneck' ? 200 : type === 'trike' ? 300 : 250;
     this.vowel({ dur: 0.18, p1: base, p2: base * 1.5, f1: 600, f2: 1100, vol: 0.28 });
     this.vowel({ at: 0.2, dur: 0.25, p1: base * 1.4, p2: base * 1.9, f1: 700, f2: 1300, vol: 0.28 });
+  }
+
+  yawn(small = false) {
+    const k = small ? 1.6 : 1;
+    this.vowel({ dur: 0.6, p1: 260 * k, p2: 170 * k, f1: 750, f2: 1150, vol: 0.22 });
+  }
+
+  snore(small = false) {
+    const k = small ? 1.5 : 1;
+    this.noise({ dur: 0.7, vol: 0.07, filter: 'lowpass', f: 380 * k, f2: 220 * k, attack: 0.3 });
+    this.tone({ type: 'triangle', f: 110 * k, f2: 80 * k, dur: 0.6, vol: 0.05, attack: 0.25 });
+  }
+
+  /** A small, soft "eep" from a lost baby. Gentle, never sad-sounding for long. */
+  whimper() {
+    this.vowel({ dur: 0.22, p1: 900, p2: 720, f1: 900, f2: 1500, vol: 0.12 });
+  }
+
+  /** Rising chime; i = ring number in a chain. */
+  ring(i = 0) {
+    const f = 660 * Math.pow(2, (i % 8) / 7);
+    this.tone({ type: 'sine', f, dur: 0.35, vol: 0.2 });
+    this.tone({ type: 'sine', f: f * 2, dur: 0.25, vol: 0.06, at: 0.04 });
+  }
+
+  egg() {
+    [880, 1109, 1319, 1760].forEach((f, i) => this.tone({ type: 'triangle', f, dur: 0.3, vol: 0.16, at: i * 0.08 }));
+    this.tone({ type: 'sine', f: 2640, dur: 0.5, vol: 0.05, at: 0.32, vibrato: 20 });
+  }
+
+  /** Soft patter of rain for a few seconds (no thunder: nothing scary). */
+  rain(dur = 4) {
+    this.noise({ dur, vol: 0.05, filter: 'highpass', f: 2500, attack: 1.2 });
   }
 
   happy() {

@@ -22,6 +22,7 @@
     <div id="hud" class="hidden">
       <div class="top-left">
         <div id="snacks" class="pill"><span class="ico" data-icon="bug"></span><span id="snack-count">0</span></div>
+        <div id="eggs" class="pill hidden"><span class="ico" data-icon="egg"></span><span id="egg-count">0</span></div>
         <button id="crest-btn" class="round small hidden" aria-label="Crest color"><span class="ico" data-icon="crest"></span></button>
       </div>
       <div class="top-center"><div id="progress" class="pill"></div></div>
@@ -34,14 +35,15 @@
     <!-- On-screen controls -->
     <div id="controls" class="hidden">
       <div class="pad pad-left">
+        <button class="ctl ctl-stunt" data-btn="stunt" aria-label="Stunt"><span class="ico" data-icon="stunt"></span></button>
         <button class="ctl ctl-turn" data-btn="left" aria-label="Turn left"><span class="ico" data-icon="left"></span></button>
         <button class="ctl ctl-turn" data-btn="right" aria-label="Turn right"><span class="ico" data-icon="right"></span></button>
       </div>
       <div class="pad pad-right">
         <button class="ctl ctl-fly" data-btn="fly" aria-label="Fly up"><span class="ico" data-icon="fly"></span></button>
-        <button class="ctl ctl-stunt" data-btn="stunt" aria-label="Stunt"><span class="ico" data-icon="stunt"></span></button>
+        <button class="ctl ctl-down" data-btn="down" aria-label="Fly down"><span class="ico" data-icon="down"></span></button>
         <button class="ctl ctl-feed popper" data-btn="feed" aria-label="Feed"><span class="ico" id="feed-icon" data-icon="apple"></span></button>
-        <button class="ctl ctl-catch popper" data-btn="catch" aria-label="Catch bug"><span class="ico" data-icon="bug"></span></button>
+        <button class="ctl ctl-catch popper" data-btn="catch" aria-label="Catch"><span class="ico" id="catch-icon" data-icon="bug"></span></button>
       </div>
     </div>
 

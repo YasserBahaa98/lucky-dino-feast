@@ -104,8 +104,23 @@ export class Hud {
     if (dino) setIcon(this.feedIcon, dino.wants);
   }
 
-  setCatch(on) {
-    this.catchBtn.classList.toggle('show', on);
+  /** kind: null (hidden), 'bug', or 'baby' (pick up the lost babies) */
+  setCatch(kind) {
+    this.catchBtn.classList.toggle('show', !!kind);
+    if (!kind) return;
+    this.catchBtn.classList.toggle('baby', kind === 'baby');
+    setIcon($('catch-icon'), kind);
+  }
+
+  setEggs(n, bump) {
+    const el = $('eggs');
+    el.classList.toggle('hidden', n === 0);
+    $('egg-count').textContent = n;
+    if (bump) {
+      el.classList.remove('bump');
+      void el.offsetWidth;
+      el.classList.add('bump');
+    }
   }
 
   stuntCooling(sec) {
@@ -139,7 +154,7 @@ export class Hud {
   }
 
   advanceHint() {
-    const order = ['fly', 'turn', 'wait-feed', 'feed', 'wait-catch', 'catch', null];
+    const order = ['fly', 'down', 'turn','wait-feed', 'feed', 'wait-catch', 'catch', null];
     this.hintStage = order[order.indexOf(this.hintStage) + 1] ?? null;
     this.hintTimer = 0;
   }
@@ -155,6 +170,10 @@ export class Hud {
       target = document.querySelector('[data-btn="fly"]');
       if (held.fly) this.hintTimer += dt;
       if (this.hintTimer > 0.6) this.advanceHint();
+    } else if (st === 'down') {
+      target = document.querySelector('[data-btn="down"]');
+      if (held.down) this.hintTimer += dt;
+      if (this.hintTimer > 0.4) this.advanceHint();
     } else if (st === 'turn') {
       target = document.querySelector(Math.floor(performance.now() / 1500) % 2 ? '[data-btn="right"]' : '[data-btn="left"]');
       if (held.left || held.right) this.hintTimer += dt;

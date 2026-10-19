@@ -19,15 +19,26 @@ offline-capable PWA on GitHub Pages. No accounts, no ads, no failing.
 | Button | What it does |
 | --- | --- |
 | ◀ ▶ | Hold to turn |
-| Wings | Hold to fly up, let go to glide gently down |
-| Fruit | Appears near a hungry dino: tosses the fruit it wants |
+| Wings ↑ / Wings ↓ | Hold to fly up or down (same speed). Let go and Lucky just hovers |
+| Fruit | Appears near a hungry dino: Lucky stops, tosses the fruit, and watches it munch |
 | Bug | Appears near a glowing bug: gobble it as a snack |
+| Baby | Appears near lost babies: pick them up and fly them home |
 | Swirl | Do a stunt (barrel roll, upside-down flip, and an unlockable loop) |
 
-Fill every dinosaur's belly (the dots in the thought bubble) to finish a level. Snacks unlock a pink crest
-(10), a loop-de-loop stunt (25) and a blue crest (40). Tap the crest button at the top to switch colors.
+Fill every dinosaur's belly (the dots in the thought bubble) to finish a level. Dinosaurs ask for different
+things: one fruit a few times, fruit in a set order (coloured dots), or a bug (catch one first and Lucky
+keeps it in his beak). Some are asleep until Lucky flies by, some wander, and from level 3 a grown-up leads
+a little herd. On even levels two lost babies need carrying home to their parent (follow the arrow).
 
-Keyboard (for testing): arrows/WASD to steer, Space/W/Up to fly, E to feed, C to catch, S to stunt.
+Islands open up as the levels go by, including a snowy island. Look for six hidden eggs (one is way up in
+the sky) and swoop through the ring loop for a speed boost. Some levels bring a cosy dusk (bugs glow
+brighter) or a soft rain shower that ends in a rainbow.
+
+Snacks unlock a pink crest (10), a loop-de-loop stunt (25) and a blue crest (40); all six eggs unlock a
+purple crest. Tap the crest button at the top to switch colors.
+
+Keyboard (for testing): arrows/A/D to steer, Up/W/Space to fly up, Down/S to fly down, E to feed,
+C to catch, X/Shift to stunt.
 
 ## Develop
 
@@ -52,7 +63,7 @@ src/
   main.js            entry: fonts, styles, service worker, game
   game/              game loop, levels, flight, camera, input, save
   actors/            Lucky, dinosaurs, fruit + thought bubbles, bugs
-  world/             islands, water, sky, clouds, volcano, particles
+  world/             islands, water, sky, clouds, volcano, weather, eggs + rings, particles
   ui/                HUD, icons, word bubbles, confetti
   audio/             WebAudio sound effects + music (no audio files)
 docs/design.md       the original design spec

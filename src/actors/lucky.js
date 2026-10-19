@@ -11,6 +11,7 @@ export const CREST_COLORS = {
   yellow: 0xffd23f,
   pink: 0xff7eb6,
   blue: 0x6fd3ff,
+  purple: 0xb48cff, // found every hidden egg
 };
 
 /**
@@ -51,6 +52,18 @@ export class LuckyModel {
     this.buildWings();
     this.buildTail();
     this.buildFeet();
+
+    // where carried babies ride: one held in his feet, one on his back between the wings
+    this.feetMount = group(this.stunt, [0, -0.62, 0.05]);
+    this.backMount = group(this.stunt, [0, 0.34, -0.22]);
+
+    // a bug he's saving for a dinosaur who asked for one
+    this.beakBug = group(this.head, [0, -0.1, 0.62]);
+    mesh('sphere', basic(0xd4ff4a), { s: [0.1, 0.1, 0.13], parent: this.beakBug });
+    mesh('sphere', DARK, { s: 0.07, p: [0, 0.02, 0.1], parent: this.beakBug });
+    for (const sx of [-1, 1]) mesh('sphere', basic(0xffffff), { s: [0.1, 0.015, 0.06], p: [sx * 0.11, 0.08, 0], r: [0, 0, sx * 0.4], parent: this.beakBug });
+    this.beakBug.visible = false;
+
     this.root.traverse((o) => { if (o.isMesh) o.castShadow = false; });
   }
 

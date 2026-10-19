@@ -7,13 +7,13 @@ import { PLAY_RADIUS, SOFT_RADIUS, MAX_ALT } from '../world/world.js';
 
 const BASE_SPEED = 8.5; // moderate top speed, easy to steer
 const TURN_RATE = 1.7; // radians per second at full turn
-const CLIMB = 6; // rise speed while holding Fly
-const SINK = 2.2; // gentle glide down when Fly is released
-const HOVER = 2.4; // lowest he glides above ground or water
+const VERT = 5; // same speed going up or down
+const HOVER = 2.4; // lowest he flies above ground or water
 
 /**
- * Lucky's flight: always gliding forward, Fly to rise, Left/Right to turn.
- * Easy-mode assists: soft edges, speed cap, gentle glide, auto-level, slow-down near targets.
+ * Lucky's flight: always flying forward and always hovering (he never sinks on his own).
+ * Up/Down change height at the same speed, Left/Right turn.
+ * Easy-mode assists: soft edges, speed cap, auto-level, slow-down near targets.
  */
 export class Player {
   constructor(ctx) {
@@ -38,6 +38,17 @@ export class Player {
     this.fwd = new THREE.Vector3();
     this.flapCount = 0;
     this.extraFloor = -Infinity; // set by the game, e.g. to hop over a dinosaur
+    this.hold = null; // { face: Vector3 } while he stops in mid-air to watch something
+    this.carrying = false;
+  }
+
+  /** Stop in mid-air (still flapping) and turn to face `face` until release(). */
+  holdAt(face) {
+    this.hold = { face: face.clone() };
+  }
+
+  release() {
+    this.hold = null;
   }
 
   reset(x, y, z, yaw) {
@@ -63,9 +74,17 @@ export class Player {
     const pos = this.pos;
 
     // turning, eased in and out
-    const turnIn = (held.left ? 1 : 0) - (held.right ? 1 : 0);
+    const turnIn = this.hold ? 0 : (held.left ? 1 : 0) - (held.right ? 1 : 0);
     this.turn = damp(this.turn, turnIn, 5, dt);
     this.yaw += this.turn * TURN_RATE * dt;
+    if (this.hold) {
+      // swing round to face what he's watching
+      const f = this.hold.face;
+      const want = Math.atan2(f.x - pos.x, f.z - pos.z);
+      const before = this.yaw;
+      this.yaw += wrapAngle(want - this.yaw) * (1 - Math.exp(-4 * dt));
+      this.turn = clamp(wrapAngle(this.yaw - before) / (dt * TURN_RATE + 1e-6), -1, 1) * 0.5;
+    }
 
     // soft edges: gently steer back toward the middle
     const d = Math.hypot(pos.x, pos.z);
@@ -77,14 +96,15 @@ export class Player {
       this.edgeTurn = Math.sign(diff) * k;
     }
 
-    // up and down: hold Fly to rise, let go to glide gently down to hover height
+    // up and down at the same speed; let go and he simply hovers where he is
     const fwd = this.forward();
     const floor = Math.max(world.floorAt(pos.x, pos.z), world.floorAt(pos.x + fwd.x * 4, pos.z + fwd.z * 4)) + HOVER;
     const minY = Math.max(floor, this.extraFloor);
-    let target;
-    if (held.fly) target = pos.y < MAX_ALT ? CLIMB : 0;
-    else target = pos.y > minY + 0.3 ? -SINK : 0;
-    this.vSpeed = damp(this.vSpeed, target, held.fly ? 3.5 : 2.2, dt);
+    const vIn = this.hold ? 0 : (held.fly ? 1 : 0) - (held.down ? 1 : 0);
+    let target = vIn * VERT;
+    if (target > 0 && pos.y >= MAX_ALT) target = 0;
+    if (target < 0 && pos.y <= minY + 0.05) target = 0;
+    this.vSpeed = damp(this.vSpeed, target, 8, dt);
     pos.y += this.vSpeed * dt;
     if (pos.y < minY) {
       pos.y = damp(pos.y, minY, 6, dt);
@@ -92,8 +112,11 @@ export class Player {
     }
     if (pos.y > MAX_ALT) pos.y = damp(pos.y, MAX_ALT, 4, dt);
 
-    // forward speed, a bit slower near something to feed or catch
-    this.speed = damp(this.speed, BASE_SPEED * (this.assist ? 0.55 : 1), 2.5, dt);
+    // forward speed: a bit slower near something to feed or catch, a tiny bit slower
+    // while carrying babies, and a quick stop when he pauses to watch
+    let want = BASE_SPEED * (this.assist ? 0.55 : 1) * (this.carrying ? 0.92 : 1);
+    if (this.hold) want = 0;
+    this.speed = damp(this.speed, want, this.hold ? 6 : 2.5, dt);
     pos.addScaledVector(fwd, this.speed * dt).addScaledVector(this.push, dt);
     this.push.multiplyScalar(Math.exp(-2.2 * dt));
     const d2 = Math.hypot(pos.x, pos.z);
@@ -110,15 +133,17 @@ export class Player {
     tilt.rotation.x = damp(tilt.rotation.x, clamp(-this.vSpeed * 0.07, -0.4, 0.3) + this.divePitch, 6, dt);
     tilt.position.y = this.dive;
 
-    const climb = clamp(this.vSpeed / CLIMB, -1, 1);
-    const glide = held.fly ? 0 : smoothstep(-0.2, -1.2, this.vSpeed);
-    this.model.update(dt, t, { climb, turn: visTurn, glide });
+    // hovering in place needs busy wings, so flap harder when stopped
+    const climb = clamp(this.vSpeed / VERT, -1, 1);
+    const hovering = 1 - clamp(this.speed / BASE_SPEED, 0, 1);
+    const glide = smoothstep(-0.2, -1, this.vSpeed) * (1 - hovering);
+    this.model.update(dt, t, { climb: Math.max(climb, hovering * 0.6), turn: visTurn, glide });
 
-    // soft flap sound on each wing beat while climbing
+    // soft flap sound on each wing beat while climbing or hovering
     const beats = Math.floor(this.model.phase / (Math.PI * 2));
     if (beats !== this.flapCount) {
       this.flapCount = beats;
-      if (held.fly) this.ctx.sound.flap();
+      if (held.fly || hovering > 0.5) this.ctx.sound.flap();
     }
 
     this.stuntCooldown -= dt;

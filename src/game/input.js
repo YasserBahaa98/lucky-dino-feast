@@ -6,14 +6,15 @@ const KEYS = {
   ArrowLeft: 'left', KeyA: 'left',
   ArrowRight: 'right', KeyD: 'right',
   ArrowUp: 'fly', KeyW: 'fly', Space: 'fly',
+  ArrowDown: 'down', KeyS: 'down',
   KeyE: 'feed', Enter: 'feed',
   KeyC: 'catch', KeyQ: 'catch',
-  KeyS: 'stunt', ShiftLeft: 'stunt',
+  KeyX: 'stunt', ShiftLeft: 'stunt',
 };
 
 export class Input {
   constructor(root) {
-    this.held = { left: false, right: false, fly: false, feed: false, catch: false, stunt: false };
+    this.held = { left: false, right: false, fly: false, down: false, feed: false, catch: false, stunt: false };
     this.taps = new Set();
     this.pointers = new Map(); // pointerId -> button name
     this.listeners = [];

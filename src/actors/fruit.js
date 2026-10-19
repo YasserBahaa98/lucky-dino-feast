@@ -28,6 +28,27 @@ export function makeFruit(type) {
       b.scale.z = 1.1;
       break;
     }
+    case 'bug': {
+      // a little glowing bug, like the ones flying around
+      mesh('sphere', basic(0xd4ff4a), { s: [0.24, 0.24, 0.32], parent: g });
+      mesh('sphere', 0x3a2f4a, { s: 0.16, p: [0, 0.04, 0.3], parent: g });
+      for (const sx of [-1, 1]) {
+        mesh('sphere', basic(0xffffff), { s: [0.22, 0.03, 0.13], p: [sx * 0.24, 0.2, -0.02], r: [0, 0, sx * 0.4], parent: g });
+        mesh('sphere', basic(0xffffff), { s: 0.05, p: [sx * 0.08, 0.1, 0.42], parent: g });
+      }
+      break;
+    }
+    case 'baby': {
+      // a tiny dino face: "where are my babies?"
+      mesh('sphere', 0x74d46c, { s: [0.38, 0.32, 0.3], parent: g });
+      mesh('sphere', 0xe6f8b4, { s: [0.22, 0.12, 0.1], p: [0, -0.12, 0.24], parent: g });
+      for (const sx of [-1, 1]) {
+        mesh('sphere', basic(0xffffff), { s: 0.1, p: [sx * 0.14, 0.06, 0.24], parent: g });
+        mesh('sphere', basic(0x1d1d2b), { s: 0.06, p: [sx * 0.14, 0.06, 0.32], parent: g });
+        mesh('sphere', basic(0xff9bb3), { s: [0.06, 0.04, 0.02], p: [sx * 0.26, -0.08, 0.22], parent: g });
+      }
+      break;
+    }
     case 'grapes': {
       const pts = [[-0.17, 0.15], [0, 0.17], [0.17, 0.15], [-0.09, -0.02], [0.09, -0.02], [0, -0.19]];
       for (const [x, y] of pts) mesh('sphere', 0x9b5de5, { s: 0.13, p: [x, y, (Math.abs(x) < 0.05 ? 0.05 : 0)], parent: g });
@@ -80,12 +101,14 @@ export class ThoughtBubble {
     this.icon.add(f);
   }
 
-  setPips(n) {
+  /** n dots, one per snack still to come. colors (optional) tints each dot, e.g. fruit order. */
+  setPips(n, colors = null) {
     this.pips.clear();
     this.pipMeshes = [];
-    const gap = 0.3;
+    this.pipColors = colors;
+    const gap = colors ? 0.34 : 0.3;
     for (let i = 0; i < n; i++) {
-      const m = mesh('circle', basic(0xff9f1c), { s: 0.11, p: [(i - (n - 1) / 2) * gap, 0, 0], parent: this.pips });
+      const m = mesh('circle', basic(colors?.[i] ?? 0xff9f1c), { s: colors ? 0.14 : 0.11, p: [(i - (n - 1) / 2) * gap, 0, 0], parent: this.pips });
       this.pipMeshes.push(m);
     }
   }
@@ -93,7 +116,7 @@ export class ThoughtBubble {
   /** Light up pips that are done (green). */
   markEaten(eatenCount) {
     this.pipMeshes.forEach((m, i) => {
-      m.material = basic(i < eatenCount ? 0x5cc95c : 0xff9f1c);
+      m.material = basic(i < eatenCount ? 0x5cc95c : this.pipColors?.[i] ?? 0xff9f1c);
     });
   }
 
