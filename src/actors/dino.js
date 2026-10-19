@@ -21,6 +21,7 @@ const SNOW = {
 
 const BLUSH = 0xff9bb3;
 const MOUTH = 0x8a2f3a;
+const tongueGeo = new THREE.CapsuleGeometry(0.16, 1, 4, 10).translate(0, 0.5, 0).rotateX(Math.PI / 2);
 const tmp = new THREE.Vector3();
 const tmp2 = new THREE.Vector3();
 
@@ -39,7 +40,7 @@ export class Dino {
     this.pal = colors ?? (variant === 'snow' ? SNOW[type] : COLORWAYS[type][Math.floor(Math.random() * COLORWAYS[type].length)]);
     this.root = new THREE.Group();
     this.rig = group(this.root);
-    this.a = { hop: 0, squash: 1, spin: 0, jaw: 0, eyes: 1, headLift: 0, headTilt: 0, lean: 0, wag: 0, scale: 1, sleep: 0, scared: 0 };
+    this.a = { hop: 0, squash: 1, spin: 0, jaw: 0, eyes: 1, tongue: 0, headLift: 0, headTilt: 0, lean: 0, wag: 0, scale: 1, sleep: 0, scared: 0 };
     this.legs = [];
     this.tail = [];
     this.neck = [];
@@ -59,6 +60,11 @@ export class Dino {
     this.shadow = blobShadow(this.shadowSize);
     this.shadow.position.y = 0.06;
     this.root.add(this.shadow);
+
+    this.tongue = new THREE.Mesh(tongueGeo, toon(0xff6f91));
+    this.tongue.visible = false;
+    this.mouth.add(this.tongue);
+    this.tongueAim = new THREE.Vector3();
 
     this.bubble = new ThoughtBubble();
 
@@ -332,6 +338,16 @@ export class Dino {
     const eyes = a.eyes * (1 + a.scared * 0.25);
     for (const e of this.eyes) e.scale.set(eyes, eyes * blinkY, eyes);
 
+    // tongue (a quick lip lick after a yummy snack)
+    this.tongue.visible = a.tongue > 0.02;
+    if (this.tongue.visible) {
+      this.tongue.lookAt(this.tongueAim);
+      this.mouth.getWorldPosition(tmp2);
+      const len = tmp2.distanceTo(this.tongueAim);
+      const parentScale = this.rig.scale.y;
+      this.tongue.scale.set(1, 1, Math.max((len * a.tongue) / parentScale, 0.01));
+    }
+
     // shadow shrinks when we jump
     const sh = 1 - clamp(a.hop / 4, 0, 0.5);
     this.shadow.visible = !this.carried;
@@ -539,7 +555,7 @@ export class Dino {
     await this.jump(0.7);
   }
 
-  /** "Yum yum yum!" - eager nods, then a couple of happy chomps. */
+  /** "Yum yum yum!" - eager nods, then licks its lips. */
   async nod() {
     const A = this.anim, a = this.a;
     this.ctx.fx.emote(this.headTop, 'heart');
@@ -550,16 +566,14 @@ export class Dino {
       a.wag = 0.8;
     });
     a.headLift = 0;
-    for (let i = 0; i < 2; i++) {
-      this.ctx.sound.munch();
-      await A.play(0.18, (_, k) => {
-        a.jaw = Math.sin(k * Math.PI) * 0.7;
-        a.squash = 1 + Math.sin(k * Math.PI) * 0.06;
-      });
-    }
-    a.jaw = 0;
-    a.squash = 1;
-    await A.to(a, { eyes: 1, wag: 0.25 }, 0.25);
+    // lick
+    this.mouthPos(tmp);
+    this.forward(tmp2);
+    this.tongueAim.copy(tmp).addScaledVector(tmp2, 0.8 * this.size).add(tmp2.set(0, 0.25, 0));
+    await A.to(a, { jaw: 0.6 }, 0.1);
+    await A.play(0.4, (_, k) => (a.tongue = Math.sin(k * Math.PI)));
+    a.tongue = 0;
+    await A.to(a, { jaw: 0, eyes: 1, wag: 0.25 }, 0.25);
   }
 
   /** Full-belly party: one of a few bigger celebrations. */
