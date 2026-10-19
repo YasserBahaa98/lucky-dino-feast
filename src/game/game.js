@@ -26,6 +26,9 @@ const BABY_RANGE = 6.5; // babies are on the ground, so be generous
 const WAKE_RANGE = 10;
 const HOME_RANGE = 10; // bring the babies this close to their parent
 const SPAWN = { x: 0, y: 9, z: -30, yaw: 0 };
+// after feeding, Lucky hovers and the camera watches until the dinosaur's reaction ends
+const WATCH_LINGER = 0.4; // a beat after the reaction before flying on
+const WATCH_MAX = 14; // safety cap
 const BABY_COUNT = 4; // lost babies per rescue: two sleepy (in his feet), two playful (on his back)
 // babies are about Lucky's size (the long-neck is long, so a bit smaller)
 const BABY_SIZE = { rex: 0.23, trike: 0.24, longneck: 0.18 };
@@ -94,7 +97,7 @@ export class Game {
     this.level = 0;
     this.state = 'title';
     this.time = 0;
-    this.cool = { fastooka: 0, sneeze: 8, tongue: 10 };
+    this.cool = { fastooka: 0, sneeze: 8 };
     this.stuntCount = 0;
     this.feedTarget = null;
     this.catchTarget = null;
@@ -333,7 +336,7 @@ export class Game {
       const isParent = rescueLevel && i === 0;
       const isLeader = herd && i === spots.length - 1 && !isParent;
       const d = new Dino(types[i % types.length], this.ctx, {
-        size: isParent ? 1.15 : isLeader ? 1.2 : 1,
+        size: isParent ? 1.15 : isLeader ? 1.2 : rand(0.9, 1.1),
         variant: isl?.kind === 'snow' ? 'snow' : null,
       });
       const faceSpawn = Math.atan2(SPAWN.x - x, SPAWN.z - z);
@@ -362,7 +365,7 @@ export class Game {
         d.wander = true;
         d.wanderT = rand(1, 3);
         for (let k = 0; k < 2; k++) {
-          const f = new Dino(d.type, this.ctx, { size: 0.62, variant: isl?.kind === 'snow' ? 'snow' : null });
+          const f = new Dino(d.type, this.ctx, { size: 0.62, colors: d.pal });
           let a = d.yaw + Math.PI + (k ? 0.6 : -0.6);
           for (let tries = 0; tries < 8 && this.world.heightAt(x + Math.sin(a) * 3.5, z + Math.cos(a) * 3.5) < 0.8; tries++) a += 0.8;
           f.place(x + Math.sin(a) * 3.5, z + Math.cos(a) * 3.5, d.yaw);
@@ -380,8 +383,8 @@ export class Game {
     });
 
     // gentle surprises: a cosy dusk now and then, and a soft rain shower
-    this.weather.setDusk(n % 4 === 3);
-    this.rainAt = n % 3 === 2 ? this.time + rand(15, 30) : Infinity;
+    this.weather.setDusk(n >= 2 && chance(0.3));
+    this.rainAt = n >= 2 && chance(0.35) ? this.time + rand(15, 30) : Infinity;
 
     this.hud.setProgress(this.dinos);
     await Promise.all(pops);
@@ -451,7 +454,7 @@ export class Game {
     d.busy = true;
     const A = this.anim;
     const wants = d.wants;
-    const endWatch = this.watchDino(d, 3.5);
+    const endWatch = this.watchDino(d, WATCH_MAX);
     this.player.feedDive();
     this.sound.toss();
     this.hud.hintDone('feed');
@@ -466,9 +469,7 @@ export class Game {
     const from = this.player.beakPos(new THREE.Vector3());
 
     if (bounce) {
-      // the chase is fun to watch, but don't keep Lucky waiting for all of it
-      A.wait(2.1).then(endWatch);
-      await this.fruitBounce(d, fruit, from);
+      await this.fruitBounce(d, fruit, from, endWatch);
       return;
     }
     await this.throwArc(fruit, from, (o) => d.mouthPos(o), 0.6, 3);
@@ -507,9 +508,8 @@ export class Game {
     await d.act(() => d.chew(3));
     if (worm) await this.sillyWorm(d);
     this.player.happy();
-    A.wait(0.75).then(() => endWatch?.());
     if (d.eaten >= d.need) {
-      await this.dinoFull(d);
+      await this.dinoFull(d, endWatch);
     } else {
       // next thing on the list
       const next = d.order[d.eaten];
@@ -517,12 +517,14 @@ export class Game {
         d.wants = next;
         d.bubble.setFruit(next);
       }
+      // the camera stays on the dinosaur until its happy reaction is done
+      await d.act(() => d.react());
       d.busy = false;
-      d.act(() => d.react());
+      A.wait(WATCH_LINGER).then(() => endWatch?.());
     }
   }
 
-  async dinoFull(d) {
+  async dinoFull(d, endWatch = null) {
     const A = this.anim;
     d.full = true;
     d.busy = false;
@@ -532,6 +534,7 @@ export class Game {
     this.sound.happy();
     if (chance(0.5)) this.fastooka();
     await d.act(() => d.party());
+    A.wait(WATCH_LINGER).then(() => endWatch?.());
     await A.to(d.bubble, { scale: 0 }, 0.35, ease.inBack);
     this.checkLevelDone();
   }
@@ -620,7 +623,7 @@ export class Game {
     const yaw = rand(0, Math.PI * 2);
     // a little huddle: two sleepy ones and two playful ones
     const babies = Array.from({ length: BABY_COUNT }, (_, k) => {
-      const b = new Dino(parent.type, this.ctx, { size: BABY_SIZE[parent.type], variant: parent.pal ? 'snow' : null });
+      const b = new Dino(parent.type, this.ctx, { size: BABY_SIZE[parent.type], colors: parent.pal });
       const a = yaw + (k / BABY_COUNT) * Math.PI * 2;
       b.place(x + Math.sin(a) * 1.1, z + Math.cos(a) * 1.1, a + Math.PI + rand(-0.4, 0.4));
       b.noChomp = true;
@@ -767,7 +770,7 @@ export class Game {
       parent.root.getWorldPosition(pts[1]);
       r.babies.forEach((b, i) => b.root.getWorldPosition(pts[i + 2]));
       return pts;
-    }, 6);
+    }, WATCH_MAX);
     parent.busy = true;
     this.fx.emote(parent.headTop, '!');
     this.sound.surprise();
@@ -818,11 +821,10 @@ export class Game {
     const between = new THREE.Vector3();
     for (const b of r.babies) between.addScaledVector(b.root.position, 1 / n);
     await parent.act(() => parent.nuzzle(between));
-    endWatch();
     this.fastooka(true);
     p.happy(true);
     parent.busy = false;
-    this.dinoFull(parent);
+    this.dinoFull(parent, endWatch);
     // babies stay close and keep bouncing
     for (const b of r.babies) {
       b.act(async () => {
@@ -984,11 +986,6 @@ export class Game {
         this.sillySneeze(d);
       }
       d.wasNear = near;
-      // hovering nearby: try to grab him with a tongue (and miss)
-      if (dist > 4.5 && dist < 10 && idle && this.cool.tongue <= 0 && chance(dt * 0.35)) {
-        this.cool.tongue = 16;
-        this.sillyTongue(d);
-      }
     }
   }
 
@@ -1006,24 +1003,8 @@ export class Game {
     d.busy = false;
   }
 
-  async sillyTongue(d) {
-    d.busy = true;
-    const p = this.player;
-    // aim where he's going, but a little off, so it always misses
-    const side = new THREE.Vector3(p.fwd.z, 0, -p.fwd.x).multiplyScalar(chance(0.5) ? 1.4 : -1.4);
-    const target = p.pos.clone().addScaledVector(p.fwd, p.speed * 0.3).add(side).add(new THREE.Vector3(0, 0.6, 0));
-    this.anim.wait(0.3).then(() => {
-      p.happy();
-      this.sound.chirp();
-      p.vSpeed += 2.5;
-    });
-    await d.act(() => d.tongueGrab(target));
-    d.busy = false;
-    if (chance(0.5)) this.fastooka();
-  }
-
   /** The fruit bonks off the dino's head and rolls away; everyone chases it. */
-  async fruitBounce(d, fruit, from) {
+  async fruitBounce(d, fruit, from, endWatch) {
     const A = this.anim, world = this.world;
     const wants = d.wants;
     await this.throwArc(fruit, from, (o) => d.headTop.getWorldPosition(o).add(v2.set(0, -0.4, 0)), 0.6, 3);
@@ -1088,7 +1069,7 @@ export class Game {
     });
     this.scene.remove(fruit);
     d.home.set(d.root.position.x, 0, d.root.position.z);
-    await this.dinoAte(d, false, wants);
+    await this.dinoAte(d, false, wants, endWatch);
   }
 
   /** Something in the fruit wiggles! A silly worm pops out and wriggles off. */

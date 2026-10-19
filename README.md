@@ -20,7 +20,7 @@ offline-capable PWA on GitHub Pages. No accounts, no ads, no failing.
 | --- | --- |
 | ◀ ▶ | Hold to turn |
 | Wings ↑ / Wings ↓ | Hold to fly up or down (same speed). Let go and Lucky just hovers |
-| Fruit | Appears near a hungry dino: Lucky stops, tosses the fruit, and watches it munch |
+| Fruit | Appears near a hungry dino: Lucky stops, tosses the fruit, and watches it munch and celebrate |
 | Bug | Appears near a glowing bug: gobble it as a snack |
 | Baby | Appears near lost babies: pick them up and fly them home |
 | Swirl | Do a stunt (barrel roll, upside-down flip, and an unlockable loop) |
@@ -30,9 +30,11 @@ things: one fruit a few times, fruit in a set order (coloured dots), or a bug (c
 keeps it in his beak). Some are asleep until Lucky flies by, some wander, and from level 3 a grown-up leads
 a little herd. On even levels four lost babies need carrying home to their parent (follow the arrow): two in Lucky's feet, two on his back.
 
-Islands open up as the levels go by, including a snowy island. Look for six hidden eggs (one is way up in
-the sky) and swoop through the ring loop for a speed boost. Some levels bring a cosy dusk (bugs glow
-brighter) or a soft rain shower that ends in a rainbow.
+Islands open up as the levels go by, including a snowy island. Every game is a little different: dinosaurs
+stand in new places, come in different colours and sizes, the small far islands change kind, and the hills,
+trees and weather are shuffled. Look for six hidden eggs (one is way up in
+the sky) and swoop through the ring loop for a speed boost. From level 2, a level may bring a cosy dusk
+(bugs glow brighter) or a soft rain shower that ends in a rainbow.
 
 Snacks unlock a pink crest (10), a loop-de-loop stunt (25) and a blue crest (40); all six eggs unlock a
 purple crest. Tap the crest button at the top to switch colors.

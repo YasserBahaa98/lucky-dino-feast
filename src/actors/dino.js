@@ -6,18 +6,21 @@ import { ThoughtBubble } from './fruit.js';
 
 export const DINO_TYPES = ['rex', 'longneck', 'trike'];
 
-// Island colour variants (body, belly, spots). The snowy island has fluffy pale dinos.
-const PALETTES = {
-  snow: {
-    rex: [0xf4f8ff, 0xffffff, 0x9cc8ff],
-    longneck: [0xe6f0ff, 0xffffff, 0xa9c4ff],
-    trike: [0xfff4f8, 0xffffff, 0xb6d6ff],
-  },
+// Colour schemes (body, belly, spots). Each dinosaur gets one at random, so no two levels look alike.
+const COLORWAYS = {
+  rex: [[0x74d46c, 0xe6f8b4, 0x4fb04c], [0x4fc9b0, 0xd9fff3, 0x2fa58e], [0xb6dd4a, 0xf6ffc9, 0x8db82f]],
+  longneck: [[0x8fb8ff, 0xdde9ff, 0x6d93e6], [0xb79cff, 0xefe6ff, 0x9277e6], [0x7fdcb0, 0xe0fff0, 0x52bf8f]],
+  trike: [[0xffad5c, 0xffe3bd, 0xf28a2e], [0xff9ec4, 0xffe4ef, 0xf27aa8], [0xffd45c, 0xfff3c4, 0xf2b630]],
+};
+// The snowy island has frosty pastel dinos (coloured, so they still stand out next to white Lucky).
+const SNOW = {
+  rex: [0x7cc4ff, 0xeef8ff, 0x4f9fe8],
+  longneck: [0xc4adff, 0xf4efff, 0x9f86f0],
+  trike: [0xffb3d4, 0xfff0f6, 0xf28ab6],
 };
 
 const BLUSH = 0xff9bb3;
 const MOUTH = 0x8a2f3a;
-const tongueGeo = new THREE.CapsuleGeometry(0.16, 1, 4, 10).translate(0, 0.5, 0).rotateX(Math.PI / 2);
 const tmp = new THREE.Vector3();
 const tmp2 = new THREE.Vector3();
 
@@ -27,15 +30,16 @@ const tmp2 = new THREE.Vector3();
  * runs every frame; scripted moments tween the values in `this.a`.
  */
 export class Dino {
-  constructor(type, ctx, { size = 1, variant = null } = {}) {
+  constructor(type, ctx, { size = 1, variant = null, colors = null } = {}) {
     this.type = type;
     this.ctx = ctx;
     this.anim = ctx.anim;
     this.size = size; // babies are small, parents a little bigger
-    this.pal = PALETTES[variant]?.[type] ?? null;
+    // family members pass their colours along; everyone else picks a random scheme
+    this.pal = colors ?? (variant === 'snow' ? SNOW[type] : COLORWAYS[type][Math.floor(Math.random() * COLORWAYS[type].length)]);
     this.root = new THREE.Group();
     this.rig = group(this.root);
-    this.a = { hop: 0, squash: 1, spin: 0, jaw: 0, eyes: 1, tongue: 0, headLift: 0, headTilt: 0, lean: 0, wag: 0, scale: 1, sleep: 0, scared: 0 };
+    this.a = { hop: 0, squash: 1, spin: 0, jaw: 0, eyes: 1, headLift: 0, headTilt: 0, lean: 0, wag: 0, scale: 1, sleep: 0, scared: 0 };
     this.legs = [];
     this.tail = [];
     this.neck = [];
@@ -55,11 +59,6 @@ export class Dino {
     this.shadow = blobShadow(this.shadowSize);
     this.shadow.position.y = 0.06;
     this.root.add(this.shadow);
-
-    this.tongue = new THREE.Mesh(tongueGeo, toon(0xff6f91));
-    this.tongue.visible = false;
-    this.mouth.add(this.tongue);
-    this.tongueAim = new THREE.Vector3();
 
     this.bubble = new ThoughtBubble();
 
@@ -333,16 +332,6 @@ export class Dino {
     const eyes = a.eyes * (1 + a.scared * 0.25);
     for (const e of this.eyes) e.scale.set(eyes, eyes * blinkY, eyes);
 
-    // tongue
-    this.tongue.visible = a.tongue > 0.02;
-    if (this.tongue.visible) {
-      this.tongue.lookAt(this.tongueAim);
-      this.mouth.getWorldPosition(tmp2);
-      const len = tmp2.distanceTo(this.tongueAim);
-      const parentScale = this.rig.scale.y;
-      this.tongue.scale.set(1, 1, Math.max((len * a.tongue) / parentScale, 0.01));
-    }
-
     // shadow shrinks when we jump
     const sh = 1 - clamp(a.hop / 4, 0, 0.5);
     this.shadow.visible = !this.carried;
@@ -550,7 +539,7 @@ export class Dino {
     await this.jump(0.7);
   }
 
-  /** "Yum yum yum!" - eager nods, then licks its lips. */
+  /** "Yum yum yum!" - eager nods, then a couple of happy chomps. */
   async nod() {
     const A = this.anim, a = this.a;
     this.ctx.fx.emote(this.headTop, 'heart');
@@ -561,14 +550,16 @@ export class Dino {
       a.wag = 0.8;
     });
     a.headLift = 0;
-    // lick
-    this.mouthPos(tmp);
-    this.forward(tmp2);
-    this.tongueAim.copy(tmp).addScaledVector(tmp2, 0.8 * this.size).add(tmp2.set(0, 0.25, 0));
-    await A.to(a, { jaw: 0.6 }, 0.1);
-    await A.play(0.4, (_, k) => (a.tongue = Math.sin(k * Math.PI)));
-    a.tongue = 0;
-    await A.to(a, { jaw: 0, eyes: 1, wag: 0.25 }, 0.25);
+    for (let i = 0; i < 2; i++) {
+      this.ctx.sound.munch();
+      await A.play(0.18, (_, k) => {
+        a.jaw = Math.sin(k * Math.PI) * 0.7;
+        a.squash = 1 + Math.sin(k * Math.PI) * 0.06;
+      });
+    }
+    a.jaw = 0;
+    a.squash = 1;
+    await A.to(a, { eyes: 1, wag: 0.25 }, 0.25);
   }
 
   /** Full-belly party: one of a few bigger celebrations. */
@@ -600,23 +591,6 @@ export class Dino {
     await A.wait(0.15);
     await A.to(a, { headLift: 0, squash: 1, eyes: 1 }, 0.5, ease.outBack);
     await A.play(0.5, (_, k) => (a.headTilt = Math.sin(k * Math.PI * 3) * 0.2 * (1 - k)));
-  }
-
-  /** Tries to grab Lucky with a big silly tongue, and misses. */
-  async tongueGrab(target) {
-    const A = this.anim, a = this.a;
-    this.tongueAim.copy(target);
-    await A.to(a, { jaw: 1.3, eyes: 1.3 }, 0.15, ease.outBack);
-    this.ctx.sound.thwip();
-    await A.play(0.22, (e) => (a.tongue = e), ease.outQuad);
-    await A.wait(0.12);
-    await A.play(0.3, (e) => (a.tongue = 1 - e), ease.inQuad);
-    a.tongue = 0;
-    await A.to(a, { jaw: 0, eyes: 1.5 }, 0.15);
-    this.ctx.fx.emote(this.headTop, '?');
-    this.ctx.sound.huh();
-    await A.play(0.6, (_, k) => (a.headTilt = Math.sin(k * Math.PI) * 0.35));
-    await A.to(a, { eyes: 1 }, 0.3);
   }
 
   async surprised() {

@@ -6,29 +6,49 @@ export const PLAY_RADIUS = 105; // Lucky can't go past this
 export const SOFT_RADIUS = 80; // starts gently turning back here
 export const MAX_ALT = 30;
 
-// Hand-placed islands so the world always looks the same.
+// Hand-placed islands, so the big landmarks are always where the player expects them.
 // `unlock` is the level an island's dinosaurs start showing up on, so the map opens up bit by bit.
+// `spots` is how many places on it a dinosaur can stand. The small far islands get a random
+// kind each game, and every island gets its own rolling hills (see the bottom of this list).
 export const ISLANDS = [
-  { x: 0, z: 0, r: 24, h: 3.5, kind: 'meadow', unlock: 1 },
-  { x: -52, z: 30, r: 28, h: 4.5, kind: 'jungle', unlock: 1 },
-  { x: 48, z: 52, r: 34, h: 4, kind: 'volcano', volcano: { h: 24, r: 14 }, unlock: 3 },
-  { x: 56, z: -34, r: 22, h: 3, kind: 'beach', unlock: 2 },
-  { x: -40, z: -52, r: 24, h: 4, kind: 'snow', peak: { x: -46, z: -61, h: 13, r: 12 }, unlock: 2 },
-  { x: 6, z: -78, r: 12, h: 2.5, kind: 'meadow', unlock: 4 },
-  { x: -86, z: -8, r: 13, h: 3, kind: 'meadow', unlock: 4 },
-  { x: 86, z: 12, r: 11, h: 2.5, kind: 'beach', unlock: 5 },
-  { x: -6, z: 82, r: 14, h: 3, kind: 'jungle', unlock: 5 },
+  { x: 0, z: 0, r: 24, h: 3.5, kind: 'meadow', unlock: 1, spots: 5 },
+  { x: -52, z: 30, r: 28, h: 4.5, kind: 'jungle', unlock: 1, spots: 4 },
+  { x: 48, z: 52, r: 34, h: 4, kind: 'volcano', volcano: { h: 24, r: 14 }, unlock: 3, spots: 4 },
+  { x: 56, z: -34, r: 22, h: 3, kind: 'beach', unlock: 2, spots: 3 },
+  { x: -40, z: -52, r: 24, h: 4, kind: 'snow', peak: { x: -46, z: -61, h: 13, r: 12 }, unlock: 2, spots: 3 },
+  { x: 6, z: -78, r: 12, h: 2.5, kind: 'any', unlock: 4, spots: 1 },
+  { x: -86, z: -8, r: 13, h: 3, kind: 'any', unlock: 4, spots: 1 },
+  { x: 86, z: 12, r: 11, h: 2.5, kind: 'any', unlock: 5, spots: 1 },
+  { x: -6, z: 82, r: 14, h: 3, kind: 'any', unlock: 5, spots: 1 },
 ];
+for (const isl of ISLANDS) {
+  if (isl.kind === 'any') isl.kind = ['meadow', 'jungle', 'beach'][Math.floor(Math.random() * 3)];
+  isl.bump = [rand(0, 10), rand(0, 10), rand(0.12, 0.2), rand(0.1, 0.17)];
+}
 
-// Places where dinosaurs can stand.
-export const DINO_SPOTS = [
-  [0, 7], [-9, -6], [9, -5], [12, 10], [-12, 9],
-  [-47, 38], [-60, 22], [-44, 22], [-62, 40],
-  [30, 48], [56, 34], [36, 66], [62, 70],
-  [52, -29], [62, -40], [46, -42],
-  [-35, -46], [-30, -58], [-42, -40],
-  [6, -78], [-86, -8], [-6, 82], [86, 12],
-];
+// Keep dinosaurs off the hidden eggs (they sit at these points; see collectibles.js).
+const EGG_CLEAR = [[-46, -61], [48, 66], [-64, 44], [89, 16], [11, -82]];
+
+// Places where dinosaurs can stand, picked fresh each game on flat-ish open ground.
+// The middle island comes first, so level 1 always starts close to Lucky.
+export const DINO_SPOTS = [];
+for (const isl of ISLANDS) {
+  const mine = [];
+  for (let tries = 0; tries < 400 && mine.length < isl.spots; tries++) {
+    const a = rand(0, Math.PI * 2);
+    const d = Math.sqrt(Math.random()) * (isl.spots > 1 ? isl.r * 0.62 : isl.r * 0.3);
+    const x = Math.round(isl.x + Math.cos(a) * d), z = Math.round(isl.z + Math.sin(a) * d);
+    const y = groundAt(x, z);
+    if (y < 1 || y > 6) continue;
+    if (Math.abs(groundAt(x + 1.5, z) - y) > 0.7 || Math.abs(groundAt(x, z + 1.5) - y) > 0.7) continue; // too steep
+    if (isl.volcano && Math.hypot(x - isl.x, z - isl.z) < isl.volcano.r + 3) continue;
+    if (isl.peak && Math.hypot(x - isl.peak.x, z - isl.peak.z) < isl.peak.r * 0.8) continue;
+    if (EGG_CLEAR.some(([ex, ez]) => Math.hypot(ex - x, ez - z) < 5)) continue;
+    if (mine.some(([mx, mz]) => Math.hypot(mx - x, mz - z) < 9)) continue;
+    mine.push([x, z]);
+  }
+  DINO_SPOTS.push(...mine);
+}
 
 /** Which island a point belongs to (nearest centre within reach), or null over open water. */
 export function islandAt(x, z, reach = 1.25) {
@@ -57,7 +77,8 @@ function islandHeight(isl, x, z) {
   const d = dist / isl.r;
   if (d > 1.15) return -Infinity;
   const t = smoothstep(0.45, 1.05, d);
-  const bumps = Math.sin(x * 0.16 + isl.r) * Math.cos(z * 0.13) * 0.6;
+  const [p1, p2, f1, f2] = isl.bump;
+  const bumps = Math.sin(x * f1 + p1) * Math.cos(z * f2 + p2) * 0.6;
   let y = lerp(isl.h + bumps, -1.4, t);
   if (isl.volcano) {
     const v = isl.volcano;
@@ -72,6 +93,12 @@ function islandHeight(isl, x, z) {
     const k = Math.max(0, 1 - Math.hypot(x - pk.x, z - pk.z) / pk.r);
     y += pk.h * k * k * (3 - 2 * k);
   }
+  return y;
+}
+
+function groundAt(x, z) {
+  let y = -3;
+  for (const isl of ISLANDS) y = Math.max(y, islandHeight(isl, x, z));
   return y;
 }
 
@@ -91,12 +118,7 @@ export class World {
 
   /** Ground height at a point (water is at 0). */
   heightAt(x, z) {
-    let y = -3;
-    for (const isl of ISLANDS) {
-      const h = islandHeight(isl, x, z);
-      if (h > y) y = h;
-    }
-    return y;
+    return groundAt(x, z);
   }
 
   /** Height that's safe for flying (never below water level). */
