@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#7fd4ff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="description" content="Fly Lucky the cockatoo around and feed the hungry baby dinosaurs!" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <title>Lucky's Dino Feast</title>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+
+    <!-- floating world-space effects (word bubbles, hearts, !) -->
+    <div id="fx"></div>
+    <canvas id="confetti"></canvas>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+      <div class="top-left">
+        <div id="snacks" class="pill"><span class="ico" data-icon="bug"></span><span id="snack-count">0</span></div>
+        <button id="crest-btn" class="round small hidden" aria-label="Crest color"><span class="ico" data-icon="crest"></span></button>
+      </div>
+      <div class="top-center"><div id="progress" class="pill"></div></div>
+      <div class="top-right">
+        <button id="install-btn-hud" class="round small hidden" aria-label="Install app"><span class="ico" data-icon="install"></span></button>
+        <button id="mute-btn" class="round small" aria-label="Sound on or off"><span class="ico" data-icon="sound"></span></button>
+      </div>
+    </div>
+
+    <!-- On-screen controls -->
+    <div id="controls" class="hidden">
+      <div class="pad pad-left">
+        <button class="ctl ctl-turn" data-btn="left" aria-label="Turn left"><span class="ico" data-icon="left"></span></button>
+        <button class="ctl ctl-turn" data-btn="right" aria-label="Turn right"><span class="ico" data-icon="right"></span></button>
+      </div>
+      <div class="pad pad-right">
+        <button class="ctl ctl-fly" data-btn="fly" aria-label="Fly up"><span class="ico" data-icon="fly"></span></button>
+        <button class="ctl ctl-stunt" data-btn="stunt" aria-label="Stunt"><span class="ico" data-icon="stunt"></span></button>
+        <button class="ctl ctl-feed popper" data-btn="feed" aria-label="Feed"><span class="ico" id="feed-icon" data-icon="apple"></span></button>
+        <button class="ctl ctl-catch popper" data-btn="catch" aria-label="Catch bug"><span class="ico" data-icon="bug"></span></button>
+      </div>
+    </div>
+
+    <div id="hint" class="hidden"><span class="ico" data-icon="hand"></span></div>
+    <div id="unlock" class="hidden"><div class="unlock-card"><div id="unlock-art"></div></div></div>
+
+    <!-- Title / Play screen -->
+    <div id="title">
+      <h1 class="logo"><span class="l1">Lucky's</span><span class="l2">Dino Feast</span></h1>
+      <div class="title-bottom">
+        <button id="play-btn" aria-label="Play"><span class="ico" data-icon="play"></span></button>
+        <button id="install-btn" class="install hidden"><span class="ico" data-icon="install"></span><span>Install app</span></button>
+      </div>
+    </div>
+
+    <div id="rotate"><span class="ico" data-icon="rotate"></span></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
